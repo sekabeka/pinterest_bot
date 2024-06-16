@@ -6,11 +6,13 @@ import random
 
 from dotenv import load_dotenv
 from urllib.parse import quote
+
 url = 'https://ru.pinterest.com/resource/BaseSearchResource/get/'
+token = requests.get('https://ru.pinterest.com').cookies.get('csrftoken')
+load_dotenv()
 
 
 def get_proxy():
-    load_dotenv()
     api_key = os.getenv('API_TOKEN')
     response = requests.get("https://proxy6.net/api/{}/getproxy".format(api_key))
     result = []
@@ -27,7 +29,7 @@ def get_proxy():
 
 proxy_list = get_proxy()
 
-async def get_results(query: str, session: aiohttp.ClientSession, csrftoken: str):
+async def get_results(session: aiohttp.ClientSession, query: str):
     proxy = random.choice(proxy_list)
 
     # async with session.get("https://ru.pinterest.com", proxy=proxy) as response:
@@ -36,12 +38,12 @@ async def get_results(query: str, session: aiohttp.ClientSession, csrftoken: str
     #csrftoken = response.cookies.get('csrftoken').value
 
     cookies = {
-        'csrftoken': csrftoken,
+        'csrftoken': token,
     }
 
     headers = {
         'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
-        'x-csrftoken': csrftoken,
+        'x-csrftoken': token,
         'x-requested-with': 'XMLHttpRequest',
     }
     data = {
@@ -66,4 +68,8 @@ async def get_results(query: str, session: aiohttp.ClientSession, csrftoken: str
             yield item['images']['orig']['url']
         bookmark = resource['bookmark']
         data['data']['options'].update({'bookmarks' : [bookmark]})
+
+
+
+
 
