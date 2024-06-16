@@ -1,49 +1,69 @@
-import urllib.parse
+import requests
+import json
+import aiohttp
+import os
+import random
 
-from playwright.sync_api import sync_playwright, Page
-json_url = 'https://ru.pinterest.com/resource/BaseSearchResource/get/'
-
-
-def get_request(page, query):
-    with page.expect_request(json_url) as manager:
-        page.goto("https://ru.pinterest.com/search/pins/?q={}".format(urllib.parse.quote(query)))
-    return manager.value
-
+from dotenv import load_dotenv
+from urllib.parse import quote
+url = 'https://ru.pinterest.com/resource/BaseSearchResource/get/'
 
 
-def get_request_page_down(page: Page):
-    with page.expect_request(json_url) as manager:
-        page.keyboard.press('PageDown')
-        page.keyboard.press('PageDown')
-        page.keyboard.press('PageDown')
-        page.keyboard.press('PageDown')
-        page.keyboard.press('PageDown')
-    return manager.value
-    
+def get_proxy():
+    load_dotenv()
+    api_key = os.getenv('API_TOKEN')
+    response = requests.get("https://proxy6.net/api/{}/getproxy".format(api_key))
+    result = []
+    for d in response.json()['list'].values():
+        result.append(
+            "http://{}:{}@{}:{}".format(
+                d['user'],
+                d['pass'],
+                d['host'],
+                d['port']
+            )
+        )
+    return result
 
-def get_data(query: str = 'мемы'):
-    with sync_playwright() as p:
-        browser = p.firefox.launch(headless=False)
-        context = browser.new_context()
-        page = context.new_page()
-        yield get_request(page, query)
-        while True:
-            yield get_request_page_down(page)
+proxy_list = get_proxy()
 
+async def get_results(query: str, session: aiohttp.ClientSession, csrftoken: str):
+    proxy = random.choice(proxy_list)
 
-        
+    # async with session.get("https://ru.pinterest.com", proxy=proxy) as response:
+    #     csrftoken = response.cookies.get('csrftoken').value
+    #response = requests.get("https://ru.pinterest.com")
+    #csrftoken = response.cookies.get('csrftoken').value
 
+    cookies = {
+        'csrftoken': csrftoken,
+    }
 
+    headers = {
+        'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+        'x-csrftoken': csrftoken,
+        'x-requested-with': 'XMLHttpRequest',
+    }
+    data = {
+        'source_url': '/search/pins/?q={}&rs=typed'.format(quote(query)),
+        'data': {
+            "options" : {
+                "query": query,
+                "scope":"pins"
+                }
+            }
+    }
+    while True:
+        str_data = {
+            'data' : json.dumps(data.copy().pop('data')),
+            'source_url' : data['source_url']
+        }
+        async with session.post(url=url, headers=headers, cookies=cookies, data=str_data, proxy=proxy) as response:
+            resource = (await response.json())['resource_response']
+        #response = requests.post(url=url, headers=headers, cookies=cookies, data=str_data)
+        #resource = response.json()['resource_response']
+        for item in resource['data']['results']:
+            yield item['images']['orig']['url']
+        bookmark = resource['bookmark']
+        data['data']['options'].update({'bookmarks' : [bookmark]})
 
-import time
-for request in get_data():
-    data = request.response().json()['resource_response']['data']['results']
-    for item in data:
-        images = item['images']
-        if images:
-            if 'orig' in images.keys():
-                print (images['orig']['url'])
-            else:
-                print ('non have images')
-    print ('sleeping...')
-    time.sleep(30)
