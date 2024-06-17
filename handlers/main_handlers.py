@@ -2,6 +2,8 @@ import aiohttp
 import asyncio
 import re
 
+from pymongo import MongoClient
+
 from aiogram import Router
 from aiogram.types import Message
 from aiogram.filters.command import Command
@@ -16,9 +18,21 @@ from parser_files.functions import (
 
 
 router = Router()
+client = MongoClient()
+db = client['pinterest']
+collection = db['users']
 
 @router.message(Command('run'))
 async def run(message: Message, state: FSMContext):
+    user = message.from_user
+    id = user.id
+    if collection.find_one({'id' : id}):
+        pass
+    else:
+        collection.insert_one({
+            'id' : id,
+            'fullname' : user.full_name
+        })
     data = await state.get_data()
     if data:
         await message.answer('У вас уже установлен pin для отслеживания.')
@@ -32,7 +46,7 @@ async def run(message: Message, state: FSMContext):
             "Если не указать время, по умолчанию интервал будет равен 15 минутам.",
             "Также нельзя установить интервал меньше 30 секунд.",
             sep='\n\n'
-        ).as_kwargs()
+        ).as_kwargs(),
     )
 
 
