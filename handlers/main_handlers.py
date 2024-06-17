@@ -61,15 +61,18 @@ async def get_query(message: Message, state: FSMContext, session: aiohttp.Client
     await state.set_data({"task" : task})
     await task
 
-@router.message(Command('cancel'), PinterestStates.process)
+@router.message(Command('cancel'))
 async def cancel_task(message: Message, state: FSMContext):
     data = await state.get_data()
-    task = data.pop('task')
-    task.cancel()
-    await message.answer(
-        **as_list(
-            'Я больше не отслеживаю для вас запрос.',
-            "Вы можете установить новый pin для отслеживания через команду /run."
-        ).as_kwargs()
-    )
+    if data:
+        task = data.pop('task')
+        task.cancel()
+        await message.answer(
+            **as_list(
+                'Я больше не отслеживаю для вас запрос.',
+                "Вы можете установить новый pin для отслеживания через команду /run."
+            ).as_kwargs()
+        )
+    else:
+        await message.answer('У вас нет отслеживаемых пинов.')
     await state.clear()
