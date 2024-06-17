@@ -65,9 +65,10 @@ async def get_query(message: Message, state: FSMContext, session: aiohttp.Client
     hours = time_object.hour
     minutes = time_object.minute
     seconds = time_object.second
-    if seconds < 30 and ((hours and minutes) == 0):
-        await message.answer('Вы не можете поставить интервал меньше 30 секунд.')
-        return
+    if hours == 0 and minutes == 0:
+        if seconds < 30:
+            await message.answer('Вы не можете поставить интервал меньше 30 секунд.')
+            return
     
     await state.set_state(PinterestStates.process)
 
