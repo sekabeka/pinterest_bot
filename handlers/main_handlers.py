@@ -71,8 +71,15 @@ async def get_query(message: Message, state: FSMContext, session: aiohttp.Client
             return
     
     await state.set_state(PinterestStates.process)
-
-    task = asyncio.create_task(work(query, message, session, state, 60 ** 2 * hours + 60 * minutes + seconds))
+    user_time_in_seconds = 60 ** 2 * hours + 60 * minutes + seconds
+    collection.update_one(
+        {'id' : message.from_user.id},
+        {'$set' : {
+            'query' : query,
+            'time' : user_time_in_seconds
+        }}
+    )
+    task = asyncio.create_task(work(query, message, session, state, user_time_in_seconds))
     await state.set_data({"task" : task})
     await task
 

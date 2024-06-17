@@ -4,7 +4,7 @@ import os
 
 from dotenv import load_dotenv
 from aiogram import Bot, Dispatcher
-from aiogram.types import BotCommand, BotCommandScopeChat
+from aiogram.types import BotCommand
 
 from handlers.main_handlers import router
 
