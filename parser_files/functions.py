@@ -1,8 +1,16 @@
-import requests
-import json
 import aiohttp
+import asyncio
 import os
+import re
+import requests
 import random
+import json
+
+from datetime import datetime, time
+from typing import Tuple
+from dotenv import load_dotenv
+from aiogram.types import Message, InputMediaPhoto, URLInputFile
+from aiogram.fsm.context import FSMContext
 
 from dotenv import load_dotenv
 from urllib.parse import quote
@@ -31,11 +39,6 @@ proxy_list = get_proxy()
 
 async def get_results(session: aiohttp.ClientSession, query: str):
     proxy = random.choice(proxy_list)
-
-    # async with session.get("https://ru.pinterest.com", proxy=proxy) as response:
-    #     csrftoken = response.cookies.get('csrftoken').value
-    #response = requests.get("https://ru.pinterest.com")
-    #csrftoken = response.cookies.get('csrftoken').value
 
     cookies = {
         'csrftoken': token,
@@ -66,8 +69,39 @@ async def get_results(session: aiohttp.ClientSession, query: str):
         #resource = response.json()['resource_response']
         for item in resource['data']['results']:
             yield item['images']['orig']['url']
-        bookmark = resource['bookmark']
+        try:
+            bookmark = resource['bookmark']
+        except:
+            yield None
         data['data']['options'].update({'bookmarks' : [bookmark]})
+
+
+
+async def work(query: str, message: Message, session: aiohttp.ClientSession, state: FSMContext, seconds: float = 15 * 60):
+    group = []
+    async for url in get_results(session, query):
+        if url is None:
+            await message.answer('По запросу ничего не нашлось 😞\nПопробуйте другую формулировку через /run.')
+            await state.clear()
+            return
+
+        if len(group) == 10:
+            await message.answer_media_group(group)
+            await asyncio.sleep(seconds)
+            group.clear()
+
+        group.append(
+            InputMediaPhoto(media=URLInputFile(url))
+        )
+            
+
+async def extract_query_and_time(text: str) -> Tuple[time, str]:
+    pattern = re.compile(r'(\d+:\d+:\d+)')
+    if re.search(pattern, text) is not None:
+        time = datetime.strptime(re.search(pattern, text)[1], '%H:%M:%S').time()
+        query = re.sub(pattern, '', text).strip()
+        return time, query
+    return 
 
 
 
