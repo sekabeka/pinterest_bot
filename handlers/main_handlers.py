@@ -22,8 +22,23 @@ client = MongoClient()
 db = client['pinterest']
 collection = db['users']
 
-@router.message(Command('run'))
-async def run(message: Message, state: FSMContext):
+@router.message(Command('start'))
+async def start(message: Message):
+    await message.answer(
+        **as_list(
+            Text("Привет, ", Bold(message.from_user.full_name), '!'),
+            Text("Я бот, который может присылать пины из Pinterest через определенный промежуток времени!"),
+            Text("На данный момент, отслеживать можно только один пин, но в дальнейшем, если я буду полезен, это исправится."),
+            Text("Чтобы начать, достаточно отправить мне команду ", BotCommand('/add'), '.'),
+            Text("Чтобы удалить отслеживаемый запрос, можно воспользоваться командой ", BotCommand('/cancel'), '.'),
+            'Внизу есть меню с доступными командами. Это удобно. Пользуйся.',
+            Bold('Начнем?'),
+            sep='\n\n'
+        ).as_kwargs()
+    )
+
+@router.message(Command('add'))
+async def add(message: Message, state: FSMContext):
     user = message.from_user
     id = user.id
     if collection.find_one({'id' : id}):
@@ -43,6 +58,7 @@ async def run(message: Message, state: FSMContext):
             Text('Отлично, введите название pin`a для отслеживания и интервал в формате ', Bold('HH:MM:SS')),
             Text("Например, вы можете написать так: ", Bold("корги 00:15:00.")),
             "Это значит, что я буду отслеживать для вас пины, связанные с корги и присылать их каждые 15 минут.",
+            Text(Bold('Часы'), ' могут принимать значение ', Underline('от 00 до 23'), ', а ', Bold('минуты с секундами от 00 до 59'), ' соответственно.'),
             "Если не указать время, по умолчанию интервал будет равен 15 минутам.",
             "Также нельзя установить интервал меньше 30 секунд.",
             sep='\n\n'
@@ -92,8 +108,12 @@ async def cancel_task(message: Message, state: FSMContext):
         await message.answer(
             **as_list(
                 'Я больше не отслеживаю для вас запрос.',
-                "Вы можете установить новый pin для отслеживания через команду /run."
+                "Вы можете установить новый pin для отслеживания через команду /add."
             ).as_kwargs()
+        )
+        collection.update_one(
+            {'id' : message.from_user.id},
+            {'$unset' : {'query' : ''}}
         )
     else:
         await message.answer('У вас нет отслеживаемых пинов.')

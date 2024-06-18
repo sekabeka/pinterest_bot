@@ -21,7 +21,7 @@ async def main():
     await bot.set_my_commands(
         commands=[
             BotCommand(
-                command='run',
+                command='add',
                 description='добавить пин для отслеживания'
             ),
             BotCommand(

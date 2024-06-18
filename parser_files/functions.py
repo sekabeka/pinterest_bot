@@ -81,7 +81,7 @@ async def work(query: str, message: Message, session: aiohttp.ClientSession, sta
     group = []
     async for url in get_results(session, query):
         if url is None:
-            await message.answer('По запросу ничего не нашлось 😞\nПопробуйте другую формулировку через /run.')
+            await message.answer('По запросу ничего не нашлось 😞\nПопробуйте другую формулировку через /add.')
             await state.clear()
             return
 
@@ -98,7 +98,10 @@ async def work(query: str, message: Message, session: aiohttp.ClientSession, sta
 async def extract_query_and_time(text: str) -> Tuple[time, str]:
     pattern = re.compile(r'(\d+:\d+:\d+)')
     if re.search(pattern, text) is not None:
-        time = datetime.strptime(re.search(pattern, text)[1], '%H:%M:%S').time()
+        try:
+            time = datetime.strptime(re.search(pattern, text)[1], '%H:%M:%S').time()
+        except:
+            return 
         query = re.sub(pattern, '', text).strip()
         return time, query
     return 
